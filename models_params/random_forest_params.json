@@ -1,0 +1,17 @@
+{
+    "cacheNodeIds": false,
+    "checkpointInterval": 10,
+    "featureSubsetStrategy": "auto",
+    "featuresCol": "features",
+    "impurity": "variance",
+    "labelCol": "cohort_ltv_avg_lifetime",
+    "maxBins": 32,
+    "maxDepth": 7,
+    "maxMemoryInMB": 256,
+    "minInfoGain": 0.0,
+    "minInstancesPerNode": 10,
+    "numTrees": 100,
+    "predictionCol": "prediction",
+    "seed": 511,
+    "subsamplingRate": 1.0
+}
