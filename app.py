@@ -36,7 +36,7 @@ if send_params:
         'request_id': str(uuid.uuid4())
     }
     message = json.dumps(params).encode('utf-8')
-    producer.start_producing(message)
+    producer.start_producing(message, 'app_request')
     logger.info(f'Sent message with ID {params["request_id"]} and the following parameters:\n{params["input_data"]}')
 
     with st.spinner('Generating your prediction...'):

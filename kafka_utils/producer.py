@@ -1,9 +1,7 @@
-import uuid, json
-from kafka import KafkaProducer, KafkaConsumer
-from loguru import logger
+from kafka import KafkaProducer
 
 
-def start_producing(message, kafka_host='localhost:9092'):
+def start_producing(message, topic, kafka_host='localhost:9092'):
     producer = KafkaProducer(bootstrap_servers=kafka_host)
-    producer.send('app_request', message)
+    producer.send(topic, message)
     producer.flush()

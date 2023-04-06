@@ -1,0 +1,199 @@
+DECLARE AVG_LIFETIME, SESSION_LENGTH, YEAR_INSTALLED INT64;
+DECLARE AD_REVENUE_PER_SEC_USD FLOAT64;
+SET (AVG_LIFETIME, SESSION_LENGTH, YEAR_INSTALLED) = (12, 90, 2018);
+SET AD_REVENUE_PER_SEC_USD = 0.0001;
+
+WITH main_subq AS (
+  WITH activity_subq AS(
+    SELECT
+      user_pseudo_id,
+      -- DATE(
+      --   TIMESTAMP_MICROS(user_first_touch_timestamp)
+      -- ) AS first_touch_date,
+      DATE(
+        MIN(
+          TIMESTAMP_MICROS(event_timestamp)
+        )
+      ) AS activity_day
+    FROM
+      `firebase-public-project.analytics_153293282.events_*`
+    -- WHERE
+    --   user_pseudo_id = '630BD3C34C2E3BE5504A3B06CAE40320'
+      -- EXTRACT(YEAR FROM DATE(
+      --   TIMESTAMP_MICROS(user_first_touch_timestamp)
+      -- )) = YEAR_INSTALLED
+    GROUP BY
+      user_pseudo_id,
+      DATE(TIMESTAMP_MICROS(event_timestamp))
+  )
+  SELECT
+    *,
+    1 + DATE_DIFF(
+      activity_day,
+      first_touch_date,
+      DAY
+    ) AS day_after_launch,
+    CASE
+      WHEN 1 + DATE_DIFF(
+        activity_day,
+        first_touch_date,
+        DAY
+      ) <= AVG_LIFETIME THEN 1
+      ELSE 0
+    END AS before_avg_lifetime
+  FROM activity_subq 
+  LEFT JOIN (
+    SELECT
+      * EXCEPT(activity_day),
+      MIN(activity_day) AS first_touch_date
+    FROM
+      activity_subq
+    GROUP BY
+      user_pseudo_id
+  )
+  USING (user_pseudo_id)
+  RIGHT JOIN (
+    WITH session_subq AS (
+      SELECT
+        first_touch_date,
+        traffic_source,
+        os,
+        country,
+        user_pseudo_id,
+        event_timestamp,
+        screen_class,
+        -- SUM(is_new_session) OVER (ORDER BY user_pseudo_id, event_timestamp) AS global_session_id,
+        SUM(is_new_session) OVER (PARTITION BY user_pseudo_id ORDER BY event_timestamp) AS user_session_id
+      FROM(
+        SELECT
+        *,
+        CASE WHEN
+          TIMESTAMP_DIFF(event_timestamp, previous_event_timestamp, MINUTE) >= SESSION_LENGTH
+          OR previous_event_timestamp IS NULL
+        THEN 1
+        ELSE 0
+        END AS is_new_session
+        FROM
+          (
+            SELECT
+              first_touch_date,
+              traffic_source.medium AS traffic_source,
+              device.operating_system AS os,
+              geo.country AS country,
+              user_pseudo_id,
+              event_name,
+              event_param.value.string_value AS screen_class,
+              TIMESTAMP_MICROS(event_timestamp) AS event_timestamp,
+              TIMESTAMP_MICROS(
+                LAG(event_timestamp) OVER
+                  (PARTITION BY user_pseudo_id ORDER BY event_timestamp) 
+              ) AS previous_event_timestamp
+            FROM
+              `firebase-public-project.analytics_153293282.events_*`,
+              UNNEST(event_params) AS event_param
+              LEFT JOIN (
+                SELECT
+                  * EXCEPT(activity_day),
+                  MIN(activity_day) AS first_touch_date
+                FROM
+                  activity_subq
+                GROUP BY
+                  user_pseudo_id
+              )
+              USING (user_pseudo_id)
+            ) LAST
+          ORDER BY user_pseudo_id, SUM(is_new_session) OVER (PARTITION BY user_pseudo_id ORDER BY event_timestamp)
+        -- WHERE
+        --   user_pseudo_id = '630BD3C34C2E3BE5504A3B06CAE40320'
+      )
+    )
+      ,revenue_subq AS (
+        SELECT
+          user_pseudo_id,
+          first_touch_date,
+          traffic_source,
+          os,
+          country,
+          event_timestamp,
+          TIMESTAMP_DIFF(
+            event_timestamp,
+            LAG(event_timestamp) OVER
+              (PARTITION BY user_session_id ORDER BY event_timestamp),
+            SECOND
+          )*AD_REVENUE_PER_SEC_USD AS ad_revenue_usd
+        FROM session_subq
+        WHERE session_subq.screen_class IN (
+          'game_board',
+          'main_menu',
+          'FIRootViewController',
+          'game_over',
+          'shop_menu',
+          'level_select',
+          'GADOInterstitialViewController',
+          'AdActivity',
+          'stats',
+          'GADNFullScreenAdViewController'
+        )
+      )
+    SELECT
+      user_pseudo_id,
+      traffic_source,
+      os,
+      country,
+      first_touch_date,
+      DATE(
+        MIN(
+          event_timestamp
+        )
+      ) AS activity_day,
+      SUM(ad_revenue_usd) AS ad_revenue_at_day
+    FROM
+      revenue_subq
+    WHERE
+      -- user_pseudo_id = '630BD3C34C2E3BE5504A3B06CAE40320'
+      EXTRACT(YEAR FROM first_touch_date) = YEAR_INSTALLED
+    GROUP BY
+      user_pseudo_id,
+      traffic_source,
+      os,
+      country,
+      first_touch_date,
+      DATE(event_timestamp)
+    ) AS revenue_table
+    USING (
+      user_pseudo_id,
+      first_touch_date,
+      activity_day
+    )
+    WHERE
+      traffic_source IS NOT NULL
+      AND os IS NOT NULL
+      AND country IS NOT NULL
+)
+SELECT
+  first_touch_date,
+  traffic_source,
+  os,
+  country,
+  CASE
+    WHEN before_avg_lifetime = 1 THEN SUM(ad_revenue_at_day)
+    ELSE 0
+  END AS cohort_ltv_avg_lifetime
+FROM
+  main_subq
+WHERE
+  traffic_source = '{traffic_source}'
+  AND country = '{country}'
+  AND os = '{os}'
+  AND FORMAT_DATETIME("%B", first_touch_date) = '{month}'
+GROUP BY
+  first_touch_date,
+  traffic_source,
+  os,
+  country,
+  before_avg_lifetime
+ORDER BY
+  first_touch_date,
+  traffic_source,
+  os,
+  country

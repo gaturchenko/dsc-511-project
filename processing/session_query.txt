@@ -1,0 +1,121 @@
+DECLARE SESSION_LENGTH, YEAR_INSTALLED INT64;
+SET (SESSION_LENGTH, YEAR_INSTALLED) = (90, 2018);
+
+
+WITH session_subq AS (
+  SELECT
+    first_touch_date,
+    traffic_source,
+    os,
+    country,
+    user_pseudo_id,
+    event_timestamp,
+    -- SUM(is_new_session) OVER (ORDER BY user_pseudo_id, event_timestamp) AS global_session_id,
+    SUM(is_new_session) OVER (PARTITION BY user_pseudo_id ORDER BY event_timestamp) AS user_session_id
+  FROM(
+    SELECT
+    *,
+    CASE WHEN
+      TIMESTAMP_DIFF(event_timestamp, previous_event_timestamp, MINUTE) >= SESSION_LENGTH
+      OR previous_event_timestamp IS NULL
+    THEN 1
+    ELSE 0
+    END AS is_new_session
+    FROM
+      (
+        SELECT
+          first_touch_date,
+          traffic_source.medium AS traffic_source,
+          device.operating_system AS os,
+          geo.country AS country,
+          user_pseudo_id,
+          event_name,
+          event_param.value.string_value AS screen_class,
+          TIMESTAMP_MICROS(event_timestamp) AS event_timestamp,
+          TIMESTAMP_MICROS(
+            LAG(event_timestamp) OVER
+              (PARTITION BY user_pseudo_id ORDER BY event_timestamp) 
+          ) AS previous_event_timestamp
+        FROM
+          `firebase-public-project.analytics_153293282.events_*`,
+          UNNEST(event_params) AS event_param
+          LEFT JOIN (
+            SELECT
+              * EXCEPT(activity_day),
+              MIN(activity_day) AS first_touch_date
+            FROM
+              (
+                SELECT
+                  user_pseudo_id,
+                  -- DATE(
+                  --   TIMESTAMP_MICROS(user_first_touch_timestamp)
+                  -- ) AS first_touch_date,
+                  DATE(
+                    MIN(
+                      TIMESTAMP_MICROS(event_timestamp)
+                    )
+                  ) AS activity_day
+                FROM
+                  `firebase-public-project.analytics_153293282.events_*`
+                -- WHERE
+                --   user_pseudo_id = '630BD3C34C2E3BE5504A3B06CAE40320'
+                  -- EXTRACT(YEAR FROM DATE(
+                  --   TIMESTAMP_MICROS(user_first_touch_timestamp)
+                  -- )) = YEAR_INSTALLED
+                GROUP BY
+                  user_pseudo_id,
+                  DATE(TIMESTAMP_MICROS(event_timestamp))
+              )
+            GROUP BY
+              user_pseudo_id
+          )
+          USING (user_pseudo_id)
+        ) LAST
+      ORDER BY user_pseudo_id, SUM(is_new_session) OVER (PARTITION BY user_pseudo_id ORDER BY event_timestamp)
+    --   AND user_pseudo_id = '630BD3C34C2E3BE5504A3B06CAE40320'
+  )
+)
+SELECT
+  first_touch_date,
+  traffic_source,
+  os,
+  country,
+AVG(session_duration_sec) AS avg_session_duration_sec,
+AVG(n_sessions) AS avg_sessions_count
+FROM (
+  SELECT
+    first_touch_date,
+    traffic_source,
+    os,
+    country,
+    user_pseudo_id,
+    user_session_id,
+    TIMESTAMP_DIFF(
+      MAX(event_timestamp),
+      MIN(event_timestamp),
+      SECOND
+    ) AS session_duration_sec,
+    MAX(user_session_id) AS n_sessions
+  FROM session_subq
+  GROUP BY
+    first_touch_date,
+    traffic_source,
+    os,
+    country,
+    user_pseudo_id,
+    user_session_id
+)
+WHERE
+  EXTRACT(YEAR FROM first_touch_date) = YEAR_INSTALLED
+  AND traffic_source = '{traffic_source}'
+  AND country = '{country}'
+  AND os = '{os}'
+  AND FORMAT_DATETIME("%B", first_touch_date) = '{month}'
+GROUP BY
+  first_touch_date,
+  traffic_source,
+  os,
+  country
+
+
+
