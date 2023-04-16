@@ -15,13 +15,13 @@ with st.form('params_form'):
     with country_col:
         country = st.selectbox('Choose country:', ['Cyprus', 'USA', 'UK'])
     with month_col:
-        month = st.selectbox('Choose month:', ['January', 'February'])
+        month = st.selectbox('Choose month:', ['August', 'June', 'July'])
 
     os_col, traffic_source_col = st.columns(2)
     with os_col:
-        os = st.selectbox('Choose OS:', ['Android', 'IOS'])
+        os = st.selectbox('Choose OS:', ['IOS', 'Android'])
     with traffic_source_col:
-        traffic_source = st.selectbox('Choose traffic source:', ['organic', 'cpc'])
+        traffic_source = st.selectbox('Choose traffic source:', ['(none)', 'organic', 'cpc'])
     
     send_params = st.form_submit_button('Get Prediction!')
 
@@ -43,9 +43,9 @@ if send_params:
         while True:
             r = redis_con()
             prediction = r.hgetall(params["request_id"])
-            if prediction != {}:
+            if 'prediction' in prediction.keys():
                 r.close()
                 break
             else:
                 continue
-    st.metric('Predicted LTV', prediction['prediction'])
+    st.metric('Predicted LTV', f"{float(prediction['prediction']):.2f}")
