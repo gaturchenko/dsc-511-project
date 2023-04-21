@@ -1,6 +1,33 @@
 version: "3"
 
 services:
+  app:
+    container_name: app
+    build: .
+    command: streamlit run app.py --server.port 8501
+    ports:
+      - 8501:8501
+    depends_on:
+      - kafka
+      - redis
+      - spark
+      - spark-worker
+    networks:
+      - broker-kafka
+
+  consumer:
+    container_name: consumer
+    build: .
+    command: python3 kafka_utils/consumer.py
+    depends_on:
+      - kafka
+      - redis
+      - app
+      - spark
+      - spark-worker
+    networks:
+      - broker-kafka
+
   zookeeper:
     image: confluentinc/cp-zookeeper:6.2.0
     container_name: zookeeper
@@ -36,11 +63,53 @@ services:
       # KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
   
   redis:
-    image: 'bitnami/redis:latest'
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
+    # image: 'bitnami/redis:latest'
+    # environment:
+    #   - ALLOW_EMPTY_PASSWORD=yes
+    # ports:
+    #   - 6379:6379
+    # networks:
+    #   - broker-kafka
+    image: redis:latest
     ports:
-      - 6379:6379
+        - 6379:6379
+    volumes:
+        - ./config/redis.conf:/redis.conf
+    command: ["redis-server", "/redis.conf"]
+    networks:
+      - broker-kafka
+  
+  spark:
+    image: docker.io/bitnami/spark:3.3
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_USER=spark
+    ports:
+      - '8080:8080'
+      - '7077:7077'
+    networks:
+      - broker-kafka
+
+  spark-worker:
+    image: docker.io/bitnami/spark:3.3
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_USER=spark
+    depends_on:
+      - spark
+    networks:
+      - broker-kafka
 
 networks:
   broker-kafka:

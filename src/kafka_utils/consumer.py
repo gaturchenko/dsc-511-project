@@ -6,8 +6,8 @@ from processing.processor import BQDataProcessor
 from prediction.predictor import LTVPredictor
 
 
-def start_consuming(topics=['app_request', 'prediction_request', 'prediction_complete'], kafka_host='localhost:9092'):
-    r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+def start_consuming(topics=['app_request', 'prediction_request', 'prediction_complete'], kafka_host='kafka:29092'):
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
     bqdp = BQDataProcessor()
     ltvp = LTVPredictor()
 
@@ -40,4 +40,5 @@ def start_consuming(topics=['app_request', 'prediction_request', 'prediction_com
 
 
 if __name__ == '__main__':
+    logger.info('Consumer activated')
     start_consuming()

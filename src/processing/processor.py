@@ -1,5 +1,6 @@
 import io, threading, asyncio, concurrent.futures, json, os, sys, uuid
 from google.cloud import bigquery, storage
+from google.oauth2 import service_account
 from loguru import logger
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from kafka_utils import producer
@@ -7,8 +8,9 @@ from kafka_utils import producer
 
 class BQDataProcessor:
     def __init__(self) -> None:
-        self.bq_client = bigquery.Client()
-        self.gcs_client = storage.Client()
+        credentials = service_account.Credentials.from_service_account_file(os.path.join(os.path.dirname(__file__), "amazing-source-374915-7739d5755c76.json"))
+        self.bq_client = bigquery.Client(credentials=credentials)
+        self.gcs_client = storage.Client(credentials=credentials)
         self.bucket = self.gcs_client.get_bucket('processed-data-bucket')
 
         with open(os.path.join(os.path.dirname(__file__), 'session_query.txt'), 'r') as f:

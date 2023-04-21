@@ -2,6 +2,7 @@ import re, json, sys, os
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import *
 from google.cloud import storage
+from google.oauth2 import service_account
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.regression import RandomForestRegressor
 from loguru import logger
@@ -11,11 +12,13 @@ from kafka_utils import producer
 
 class LTVPredictor:
     def __init__(self) -> None:
-        self.gcs_client = storage.Client()
+        credentials = service_account.Credentials.from_service_account_file(os.path.join(os.path.dirname(__file__), "amazing-source-374915-7739d5755c76.json"))
+        self.gcs_client = storage.Client(credentials=credentials)
         self.bucket = self.gcs_client.bucket('processed-data-bucket')
 
-        self.spark = SparkSession.builder.appName('LTV_Predictor').config("spark.jars", os.path.join(os.path.dirname(__file__), "gcs-connector-latest-hadoop2.jar")).getOrCreate()
-        self.spark._jsc.hadoopConfiguration().set("google.cloud.auth.service.account.json.keyfile","/Users/grigoryturchenko/.config/gcloud/application_default_credentials.json")
+        self.spark = SparkSession.builder.appName('LTV_Predictor').master("spark://spark:7077")\
+            .config("spark.jars", os.path.join(os.path.dirname(__file__), "gcs-connector-latest-hadoop2.jar")).getOrCreate()
+        self.spark._jsc.hadoopConfiguration().set("google.cloud.auth.service.account.json.keyfile", os.path.join(os.path.dirname(__file__), "application_default_credentials.json"))
         self.spark._jsc.hadoopConfiguration().set('fs.gs.impl', 'com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem')
 
     def load_data(self, folder_id):
