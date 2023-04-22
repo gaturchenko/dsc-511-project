@@ -1,17 +1,22 @@
-import json, redis, os, sys, asyncio
+import json, redis, os, sys, asyncio, subprocess
 from kafka import KafkaConsumer
 from loguru import logger
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from processing.processor import BQDataProcessor
-from prediction.predictor import LTVPredictor
+from prediction.saver import PredictionSaver
 
 
-def start_consuming(topics=['app_request', 'prediction_request', 'prediction_complete'], kafka_host='kafka:29092'):
-    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+def start_consuming(topics=['app_request', 'prediction_request', 'prediction_complete'], kafka_host='localhost:9092'):
+    os.environ['PROJECT'] = 'snappy-elf-384513'
+    os.environ['BUCKET_NAME'] = 'processed-data-bucket'
+    os.environ['CLUSTER'] = 'cluster-0ad6'
+    os.environ['REGION'] = 'europe-west9'
+
+    r = redis.Redis(host='localhost', port=6379, decode_responses=True)
     bqdp = BQDataProcessor()
-    ltvp = LTVPredictor()
-
+    ps = PredictionSaver()
     consumer = KafkaConsumer(bootstrap_servers=kafka_host)
+    
     consumer.subscribe(topics)
 
     for msg in consumer:
@@ -28,7 +33,12 @@ def start_consuming(topics=['app_request', 'prediction_request', 'prediction_com
                 'bucket_folder_id': message['bucket_folder_id']
             })
             logger.info(f"Bucket folder ID {message['bucket_folder_id']} is written to Redis")
-            ltvp.make_prediction(message['bucket_folder_id'])
+            job = f'gcloud dataproc jobs submit pyspark predictor.py \
+            --cluster=$CLUSTER \
+            --region=$REGION \
+            -- gs://$BUCKET_NAME/{message["bucket_folder_id"]} {message["bucket_folder_id"]}'
+            subprocess.run([job], shell=True, stdout=subprocess.PIPE, cwd='prediction/')
+            ps.send_prediction(message['bucket_folder_id'])
 
         elif 'data_id' in message.keys():
             logger.info(f"Received a predicted LTV for the data with ID {message['data_id']}")
