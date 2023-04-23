@@ -6,6 +6,9 @@ from kafka_utils import producer
 
 
 class BQDataProcessor:
+    """
+    Abstraction to execute SQL queries in BigQuery in parallel
+    """
     def __init__(self) -> None:
         self.bq_client = bigquery.Client(project='snappy-elf-384513')
         self.gcs_client = storage.Client(project='snappy-elf-384513')
@@ -26,7 +29,16 @@ class BQDataProcessor:
             'ltv': self.ltv_query,
         }
 
-    def start_job(self, job_name: str, query_params: dict) -> str:
+    def start_job(self, job_name: str, query_params: dict) -> None:
+        """
+        Method to run the SQL query
+
+        Parameters:
+
+        `job_name` : `str`, one of `["session", "ltv", "event"]`. Maps to the corresponding SQL query
+
+        `query_params` : `dict`, parameters obtained from the application input
+        """
         query = self.query_mapping[job_name]
         query = query.format(**query_params['input_data'])
 
@@ -41,6 +53,16 @@ class BQDataProcessor:
         self.bucket_id = query_params['request_id']
 
     async def run_threads(self, params: dict, job_type: str = 'prediction') -> None:
+        """
+        Method to parallelize SQL queries execution
+
+        Parameters:
+
+        `params` : `dict`, parameters obtained from the application input
+        
+        `job_type` : `str`, default "prediction". Used to specify if it is necessary to make a prediction or just \
+            query the database
+        """
         threads = []
         t1 = threading.Thread(target=self.start_job, args=('session', params))
         t2 = threading.Thread(target=self.start_job, args=('event', params))

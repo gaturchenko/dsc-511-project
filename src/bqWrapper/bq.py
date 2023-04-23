@@ -1,16 +1,18 @@
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, DataFrame
 from py4j.protocol import Py4JJavaError
 
 class bqWrapper:
-
-    def __init__(self, master: str = 'yarn', appName: str = 'bigquery-export'):
+    """
+    Abstraction to create a pyspark session connected to BigQuery
+    """
+    def __init__(self, master: str = 'yarn', appName: str = 'bigquery-export') -> None:
         self.master = master
         self.appName = appName
         self.connection = self.__create_spark_connection(self.master, self.appName)
 
     
     @staticmethod
-    def __create_spark_connection(master: str, appName: str, project: str = 'snappy-elf-384513', dataset: str = 'dsc_511'):
+    def __create_spark_connection(master: str, appName: str, project: str = 'snappy-elf-384513', dataset: str = 'dsc_511') -> SparkSession:
         '''
         Initialize connection with spark
         '''
@@ -25,7 +27,7 @@ class bqWrapper:
         return con
     
 
-    def create_bigquery_connection(self, connection, table: str, project: str = 'snappy-elf-384513', dataset:str = 'dsc_511'):
+    def create_bigquery_connection(self, connection, table: str, project: str = 'snappy-elf-384513', dataset:str = 'dsc_511') -> DataFrame:
         '''
         Read BigQuery table
         Available tables:

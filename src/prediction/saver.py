@@ -6,11 +6,22 @@ from kafka_utils import producer
 
 
 class PredictionSaver():
+    """
+    Abstraction to send the completed prediction message
+    """
     def __init__(self) -> None:
         self.gcs_client = storage.Client(project='snappy-elf-384513')
         self.bucket = self.gcs_client.get_bucket('processed-data-bucket')
 
-    def send_prediction(self, folder_id):
+    def send_prediction(self, folder_id: str) -> None:
+        """
+        Method to load the prediction from GCS and send the message
+
+        Parameters:
+
+        `folder_id` : `str`, name of the folder in GCS bucket with the parquet files
+
+        """
         for blob in self.gcs_client.list_blobs('processed-data-bucket', prefix=f'{folder_id}/prediction'):
             if '.csv' in blob.name:
                 prediction_csv = blob.download_as_string()

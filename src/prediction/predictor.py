@@ -1,15 +1,29 @@
 import re, sys
-from pyspark.sql import SparkSession, Window
+from pyspark.sql import SparkSession, Window, DataFrame
 from pyspark.sql.functions import *
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.regression import RandomForestRegressor
 
 
 class LTVPredictor:
+    """
+    Abstraction to run preprocessing and prediction pyspark job
+    """
     def __init__(self) -> None:
         self.spark = SparkSession.builder.master('yarn').appName('LTV_Predictor').getOrCreate()
 
-    def load_data(self, folder_id):
+    def load_data(self, folder_id: str) -> DataFrame:
+        """
+        Method to create the model input
+
+        Parameters:
+
+        `folder_id` : `str`, name of the folder in GCS bucket with the parquet files
+
+        Returns:
+
+        `pyspark.DataFrame` : input for the 
+        """
         path = f"gs://processed-data-bucket/{folder_id}"
         COHORTS_DIMENSIONS = ['first_touch_date', 'traffic_source', 'os', 'country']
         TARGET_VAR = 'cohort_ltv_avg_lifetime'
@@ -44,14 +58,26 @@ class LTVPredictor:
         df_model = assembler.transform(df)        
         return df_model
 
-    def predict(self, df_model, folder_id):
+    def predict(self, df_model: DataFrame, folder_id: str) -> None:
+        """
+        Method to fit the model, make a prediction, and write to GCS bucker folder
+
+        Parameters:
+
+        `df_model` : pyspark.DataFrame, the dataframe obtained from the `load_data` method
+        
+        `folder_id` : `str`, name of the folder in GCS bucket with the parquet files
+        """
         rf = RandomForestRegressor.load('gs://processed-data-bucket/rf')
         rf_fit = rf.fit(df_model)
 
         prediction = rf_fit.transform(df_model).select(avg('prediction').alias('predicted_ltv'))
         prediction.write.format('csv').option('path', f'gs://processed-data-bucket/{folder_id}/prediction').save(header=True)
 
-    def make_prediction(self, folder_id=sys.argv[2]):
+    def make_prediction(self, folder_id: str = sys.argv[2]):
+        """
+        Main method to run the pyspark job
+        """
         df = self.load_data(folder_id)
         self.predict(df, folder_id)
 

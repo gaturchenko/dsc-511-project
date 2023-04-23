@@ -6,7 +6,19 @@ from processing.processor import BQDataProcessor
 from prediction.saver import PredictionSaver
 
 
-def start_consuming(topics=['app_request', 'prediction_request', 'prediction_complete'], kafka_host='localhost:9092'):
+def start_consuming(topics=['app_request', 'prediction_request', 'prediction_complete'], kafka_host='localhost:9092') -> None:
+    """
+    Function to start the consumer listening to Kafka server
+
+    Parameters:
+
+    `topics` : `list`, the topics the consumer is listening to. Includes: \
+        - Request for SQL queries from the web app
+        - Prediction request for the GCS bucket folder
+        - Submission of the prediction to Redis
+
+    `kafka_host` : `str`, the address of the kafka host, defaults to localhost:9092
+    """
     os.environ['PROJECT'] = 'snappy-elf-384513'
     os.environ['BUCKET_NAME'] = 'processed-data-bucket'
     os.environ['CLUSTER'] = 'cluster-0ad6'

@@ -1,3 +1,9 @@
+"""
+Main script to start the web application
+Run by executing `streamlit run app.py`
+"""
+
+
 import streamlit as st, uuid, json, redis
 from loguru import logger
 from kafka_utils import producer
