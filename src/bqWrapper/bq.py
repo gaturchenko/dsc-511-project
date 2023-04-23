@@ -10,7 +10,7 @@ class bqWrapper:
 
     
     @staticmethod
-    def __create_spark_connection(master, appName):
+    def __create_spark_connection(master: str, appName: str, project: str = 'snappy-elf-384513', dataset: str = 'dsc_511'):
         '''
         Initialize connection with spark
         '''
@@ -20,21 +20,23 @@ class bqWrapper:
             .getOrCreate()
         con.conf.set("spark.sql.repl.eagerEval.enabled",True) # reference: https://codelabs.developers.google.com/codelabs/spark-jupyter-dataproc#5
         con.conf.set("viewsEnabled","true")
-        con.conf.set("materializationProject","amazing-source-374915")
-        con.conf.set("materializationDataset","dsc_511")
+        con.conf.set("materializationProject",project)
+        con.conf.set("materializationDataset",dataset)
         return con
     
 
-    def create_bigquery_connection(self, connection, table: str):
+    def create_bigquery_connection(self, connection, table: str, project: str = 'snappy-elf-384513', dataset:str = 'dsc_511'):
         '''
         Read BigQuery table
         Available tables:
             - ltv_data
             - event_data
+            - session_data
+            - lifetime_data
         '''
         try:
             df = connection.read.format('bigquery') \
-                .option('table', f'amazing-source-374915.dsc_511.{table}') \
+                .option('table', f'{project}.{dataset}.{table}') \
                 .load()
             return df
         except Py4JJavaError as e:
