@@ -337,7 +337,7 @@ SET KEYS = [
       AND traffic_source = '{traffic_source}'
       AND country = '{country}'
       AND os = '{os}'
-      AND FORMAT_DATETIME("%B", first_touch_date) = '{month}'
+      AND FORMAT_DATETIME("%Y-%m-%d", first_touch_date) = '{date}'
     ORDER BY
       user_pseudo_id,
       user_session_id;

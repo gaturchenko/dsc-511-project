@@ -4,9 +4,10 @@ Run by executing `streamlit run app.py`
 """
 
 
-import streamlit as st, uuid, json, redis
+import streamlit as st, uuid, json, redis, datetime
 from loguru import logger
 from kafka_utils import producer
+from country_list import countries_for_language
 
 
 st.title('LTV Prediction Tool')
@@ -19,15 +20,17 @@ def redis_con():
 with st.form('params_form'):
     country_col, month_col = st.columns(2)
     with country_col:
-        country = st.selectbox('Choose country:', ['Cyprus', 'Canada'])
+        countries = [i[1] for i in countries_for_language('en')]
+        print(countries)
+        country = st.selectbox('Choose country:', countries, countries.index('Cyprus'))
     with month_col:
-        month = st.selectbox('Choose month:', ['August', 'June'])
+        date = st.date_input('Choose the date:', datetime.date(2018, 7, 31), min_value=datetime.date(2018, 6, 12), max_value=datetime.date(2018, 11, 4))
 
     os_col, traffic_source_col = st.columns(2)
     with os_col:
-        os = st.selectbox('Choose OS:', ['IOS', 'Android'])
+        os = st.selectbox('Choose OS:', ['IOS', 'ANDROID'], format_func=lambda x: x.title() if x =='ANDROID' else x)
     with traffic_source_col:
-        traffic_source = st.selectbox('Choose traffic source:', ['(none)', 'organic'])
+        traffic_source = st.selectbox('Choose traffic source:', ['(none)', 'organic', 'cpc', 'dynamic_link', 'graphic', 'invite_a_friend_campaign', 'notification', 'rj'])
     
     send_params = st.form_submit_button('Get Prediction!')
 
@@ -35,7 +38,7 @@ if send_params:
     params = {
         'input_data': {
             'country': country,
-            'month': month,
+            'date': date.strftime('%Y-%m-%d'),
             'os': os,
             'traffic_source': traffic_source
         },

@@ -185,7 +185,7 @@ WHERE
   traffic_source = '{traffic_source}'
   AND country = '{country}'
   AND os = '{os}'
-  AND FORMAT_DATETIME("%B", first_touch_date) = '{month}'
+  AND FORMAT_DATETIME("%Y-%m-%d", first_touch_date) = '{date}'
 GROUP BY
   first_touch_date,
   traffic_source,

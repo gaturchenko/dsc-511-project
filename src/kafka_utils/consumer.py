@@ -6,7 +6,7 @@ from processing.processor import BQDataProcessor
 from prediction.saver import PredictionSaver
 
 
-def start_consuming(topics=['app_request', 'prediction_request', 'prediction_complete'], kafka_host='localhost:9092') -> None:
+def start_consuming(topics: list = ['app_request', 'prediction_request', 'prediction_complete'], kafka_host: str = 'localhost:9092') -> None:
     """
     Function to start the consumer listening to Kafka server
 
