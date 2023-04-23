@@ -19,15 +19,15 @@ def redis_con():
 with st.form('params_form'):
     country_col, month_col = st.columns(2)
     with country_col:
-        country = st.selectbox('Choose country:', ['Cyprus', 'USA', 'UK'])
+        country = st.selectbox('Choose country:', ['Cyprus', 'Canada'])
     with month_col:
-        month = st.selectbox('Choose month:', ['August', 'June', 'July'])
+        month = st.selectbox('Choose month:', ['August', 'June'])
 
     os_col, traffic_source_col = st.columns(2)
     with os_col:
         os = st.selectbox('Choose OS:', ['IOS', 'Android'])
     with traffic_source_col:
-        traffic_source = st.selectbox('Choose traffic source:', ['(none)', 'organic', 'cpc'])
+        traffic_source = st.selectbox('Choose traffic source:', ['(none)', 'organic'])
     
     send_params = st.form_submit_button('Get Prediction!')
 
