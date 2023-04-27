@@ -1,6 +1,13 @@
 version: "3"
 
 services:
+
+  app:
+    container_name: model-app
+    restart: unless-stopped
+    build: ./src
+    command: bash ./start.sh
+  
   zookeeper:
     image: confluentinc/cp-zookeeper:6.2.0
     container_name: zookeeper
