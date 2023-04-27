@@ -1,0 +1,11 @@
+gcloud:
+  project: snappy-elf-384513
+  bucket_name: processed-data-bucket
+  cluster: cluster-66e3
+  region: europe-west9
+
+kafka:
+  kafka_host: localhost:9092
+
+redis:
+  host: localhost

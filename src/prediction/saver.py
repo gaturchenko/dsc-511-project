@@ -1,17 +1,22 @@
-import sys, os, io, pandas as pd, json
+import sys, os, io, pandas as pd, json, yaml
 from loguru import logger
 from google.cloud import storage
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from kafka_utils import producer
 
 
+with open('config.yaml', 'r') as f:
+    config = yaml.safe_load(f)
+
 class PredictionSaver():
     """
     Abstraction to send the completed prediction message
     """
+    config : config
     def __init__(self) -> None:
-        self.gcs_client = storage.Client(project='snappy-elf-384513')
-        self.bucket = self.gcs_client.get_bucket('processed-data-bucket')
+        self.config = config
+        self.gcs_client = storage.Client(project=config['gcloud']['project'])
+        self.bucket = self.gcs_client.get_bucket(config['gcloud']['bucket_name'])
 
     def send_prediction(self, folder_id: str) -> None:
         """
@@ -22,7 +27,7 @@ class PredictionSaver():
         `folder_id` : `str`, name of the folder in GCS bucket with the parquet files
 
         """
-        for blob in self.gcs_client.list_blobs('processed-data-bucket', prefix=f'{folder_id}/prediction'):
+        for blob in self.gcs_client.list_blobs(config['gcloud']['bucket_name'], prefix=f'{folder_id}/prediction'):
             if '.csv' in blob.name:
                 prediction_csv = blob.download_as_string()
         df = pd.read_csv(io.BytesIO(prediction_csv), encoding='utf-8', sep=',')

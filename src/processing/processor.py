@@ -1,18 +1,23 @@
-import io, threading, asyncio, concurrent.futures, json, os, sys, uuid
+import io, threading, asyncio, concurrent.futures, json, os, sys, uuid, yaml
 from google.cloud import bigquery, storage
 from loguru import logger
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from kafka_utils import producer
 
 
+with open('config.yaml', 'r') as f:
+    config = yaml.safe_load(f)
+
 class BQDataProcessor:
     """
     Abstraction to execute SQL queries in BigQuery in parallel
     """
+    config : config
     def __init__(self) -> None:
-        self.bq_client = bigquery.Client(project='snappy-elf-384513')
-        self.gcs_client = storage.Client(project='snappy-elf-384513')
-        self.bucket = self.gcs_client.get_bucket('processed-data-bucket')
+        self.config = config
+        self.bq_client = bigquery.Client(project=config['gcloud']['project'])
+        self.gcs_client = storage.Client(project=config['gcloud']['project'])
+        self.bucket = self.gcs_client.get_bucket(config['gcloud']['bucket_name'])
 
         with open(os.path.join(os.path.dirname(__file__), 'session_query.txt'), 'r') as f:
             self.session_query = f.read()

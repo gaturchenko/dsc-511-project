@@ -1,4 +1,4 @@
-import json, redis, os, sys, asyncio, subprocess
+import json, redis, os, sys, asyncio, subprocess, yaml
 from kafka import KafkaConsumer
 from loguru import logger
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -6,7 +6,10 @@ from processing.processor import BQDataProcessor
 from prediction.saver import PredictionSaver
 
 
-def start_consuming(topics: list = ['app_request', 'prediction_request', 'prediction_complete'], kafka_host: str = 'localhost:9092') -> None:
+with open('config.yaml', 'r') as f:
+    config = yaml.safe_load(f)
+
+def start_consuming(topics: list = ['app_request', 'prediction_request', 'prediction_complete'], kafka_host: str = config['kafka']['kafka_host']) -> None:
     """
     Function to start the consumer listening to Kafka server
 
@@ -19,12 +22,12 @@ def start_consuming(topics: list = ['app_request', 'prediction_request', 'predic
 
     `kafka_host` : `str`, the address of the kafka host, defaults to localhost:9092
     """
-    os.environ['PROJECT'] = 'snappy-elf-384513'
-    os.environ['BUCKET_NAME'] = 'processed-data-bucket'
-    os.environ['CLUSTER'] = 'cluster-0ad6'
-    os.environ['REGION'] = 'europe-west9'
+    os.environ['PROJECT'] = config['gcloud']['project']
+    os.environ['BUCKET_NAME'] = config['gcloud']['bucket_name']
+    os.environ['CLUSTER'] = config['gcloud']['cluster']
+    os.environ['REGION'] = config['gcloud']['region']
 
-    r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+    r = redis.Redis(host=config['redis']['host'], port=6379, decode_responses=True)
     bqdp = BQDataProcessor()
     ps = PredictionSaver()
     consumer = KafkaConsumer(bootstrap_servers=kafka_host)
