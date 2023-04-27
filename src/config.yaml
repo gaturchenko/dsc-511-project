@@ -5,7 +5,9 @@ gcloud:
   region: europe-west9
 
 kafka:
-  kafka_host: localhost:9092
+  kafka_host:
+    local: localhost:9092
+    docker: kafka:29092
 
 redis:
   host: localhost
