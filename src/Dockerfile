@@ -9,6 +9,7 @@ COPY prediction ./prediction
 COPY processing ./processing
 COPY app.py .
 COPY start.sh .
+COPY config.yaml .
 
 RUN apt-get update \
     && apt-get install -y curl \
