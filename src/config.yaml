@@ -10,4 +10,6 @@ kafka:
     docker: kafka:29092
 
 redis:
-  host: localhost
+  host:
+    local: localhost
+    docker: redis

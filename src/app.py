@@ -17,7 +17,7 @@ st.title('LTV Prediction Tool')
 
 @st.cache_resource
 def redis_con():
-    r = redis.Redis(host=config['redis']['host'], port=6379, decode_responses=True)
+    r = redis.Redis(host=config['redis']['host']['docker'], port=6379, decode_responses=True)
     return r
 
 with st.form('params_form'):

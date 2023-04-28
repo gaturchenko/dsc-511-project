@@ -1,5 +1,25 @@
 FROM gcr.io/cloud-marketplace/google/debian11:latest
 
+RUN apt-get update \
+    && apt-get install -y curl \
+    && apt-get install -y python3 \
+    && apt-get install -y python3-pip
+
+WORKDIR /
+ENV PATH=/google-cloud-sdk/bin:$PATH
+RUN export CLOUD_SDK_VERSION="410.0.0" \
+    && curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz \
+    && tar xzf google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz \
+    && rm google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz \
+    && ln -s /lib /lib64
+
+RUN gcloud config set core/disable_usage_reporting true && \
+    gcloud config set component_manager/disable_update_check true && \
+    gcloud config set metrics/environment github_docker_images && \
+    gcloud -q components install beta kubectl
+
+ENTRYPOINT ["sh", "-c", "gcloud --version"]
+
 WORKDIR /app
 
 COPY requirements.txt .
@@ -11,19 +31,7 @@ COPY app.py .
 COPY start.sh .
 COPY config.yaml .
 
-RUN apt-get update \
-    && apt-get install -y curl \
-    && apt-get install -y python3 \
-    && apt-get install -y python3-pip
-
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 RUN  chmod +x start.sh
 
-ENV PATH=/google-cloud-sdk/bin:$PATH
-RUN export CLOUD_SDK_VERSION="410.0.0" \
-    && curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz \
-    && tar xzf google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz \
-    && rm google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz \
-    && ln -s /lib /lib64
-
-ENTRYPOINT ["./start.sh"]
+# ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin

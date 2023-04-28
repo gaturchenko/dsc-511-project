@@ -27,7 +27,7 @@ def start_consuming(topics: list = ['app_request', 'prediction_request', 'predic
     os.environ['CLUSTER'] = config['gcloud']['cluster']
     os.environ['REGION'] = config['gcloud']['region']
 
-    r = redis.Redis(host=config['redis']['host'], port=6379, decode_responses=True)
+    r = redis.Redis(host=config['redis']['host']['docker'], port=6379, decode_responses=True)
     bqdp = BQDataProcessor()
     ps = PredictionSaver()
     consumer = KafkaConsumer(bootstrap_servers=kafka_host)
