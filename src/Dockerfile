@@ -1,10 +1,14 @@
+# Google Cloud SDK installation credits: https://stackoverflow.com/questions/74662355/docker-build-debian-11-image-with-python-and-google-cloud-sdk-in-it
+
 FROM gcr.io/cloud-marketplace/google/debian11:latest
 
+# Install necessary components
 RUN apt-get update \
     && apt-get install -y curl \
     && apt-get install -y python3 \
     && apt-get install -y python3-pip
 
+# Install and configure Google Cloud SDK
 WORKDIR /
 ENV PATH=/google-cloud-sdk/bin:$PATH
 RUN export CLOUD_SDK_VERSION="410.0.0" \
@@ -18,8 +22,7 @@ RUN gcloud config set core/disable_usage_reporting true && \
     gcloud config set metrics/environment github_docker_images && \
     gcloud -q components install beta kubectl
 
-ENTRYPOINT ["sh", "-c", "gcloud --version"]
-
+# Configure app dependencies
 WORKDIR /app
 
 COPY requirements.txt .
@@ -34,4 +37,4 @@ COPY config.yaml .
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 RUN  chmod +x start.sh
 
-# ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
+ENTRYPOINT [ "./start.sh" ]
