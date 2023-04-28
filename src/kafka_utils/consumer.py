@@ -9,7 +9,7 @@ from prediction.saver import PredictionSaver
 with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)
 
-def start_consuming(topics: list = ['app_request', 'prediction_request', 'prediction_complete'], kafka_host: str = config['kafka']['kafka_host']) -> None:
+def start_consuming(topics: list = ['app_request', 'prediction_request', 'prediction_complete'], kafka_host: str = config['kafka']['kafka_host']['docker']) -> None:
     """
     Function to start the consumer listening to Kafka server
 

@@ -4,7 +4,7 @@ from kafka import KafkaProducer
 with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)
 
-def start_producing(message: str, topic: str, kafka_host: str = config['kafka']['kafka_host']) -> None:
+def start_producing(message: str, topic: str, kafka_host: str = config['kafka']['kafka_host']['docker']) -> None:
     """
     Function to send the message to consumer
 
