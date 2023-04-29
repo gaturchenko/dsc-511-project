@@ -1,8 +1,8 @@
-import re, sys
+import re, sys, numpy as np
 from pyspark.sql import SparkSession, Window, DataFrame
 from pyspark.sql.functions import *
 from pyspark.ml.feature import VectorAssembler
-from pyspark.ml.regression import RandomForestRegressor
+from pyspark.ml.regression import RandomForestRegressor, RandomForestRegressionModel
 
 
 class LTVPredictor:
@@ -31,11 +31,43 @@ class LTVPredictor:
         df_ltv = self.spark.read.parquet(f'{path}/ltv.parquet')
         df_session = self.spark.read.parquet(f'{path}/session.parquet')
         df_event = self.spark.read.parquet(f'{path}/event.parquet')
+        session_cols = [i for i in df_event.columns if 'session' in i and 'id' not in i]
+
+        def add_missing_rows(df_event: DataFrame, day: str) -> DataFrame:
+            for col in session_cols:
+                df_event = df_event.withColumn(col, lit(np.NaN))
+            df_event = df_event.withColumn('day_after_launch', lit(3))
+            df_event = df_event.withColumn(day, lit(1))
+            df_event = df_event.withColumn('d_1', lit(0))
+            return df_event
+
+        if df_event.select(sum('d_3')).rdd.collect()[0][0] == 0:
+            df_event_3 = add_missing_rows(df_event, 'd_3')
+        else:
+            df_event_3 = None
+
+        if df_event.select(sum('d_5')).rdd.collect()[0][0] == 0:
+            df_event_5 = add_missing_rows(df_event, 'd_5')
+        else:
+            df_event_5 = None
+
+        if df_event.select(sum('d_7')).rdd.collect()[0][0] == 0:
+            df_event_7 = add_missing_rows(df_event, 'd_7')
+        else:
+            df_event_7 = None
+
+        if df_event_3 != None:
+            df_event = df_event.union(df_event_3)
+
+        if df_event_5 != None:
+            df_event = df_event.union(df_event_5)
+            
+        if df_event_7 != None:
+            df_event = df_event.union(df_event_7)
 
         df_event = df_event.withColumn('d_cat', when(df_event.d_1 == 1, 'd_1').when(df_event.d_3 == 1, 'd_3').when(df_event.d_5 == 1, 'd_5').\
             when(df_event.d_7 == 1, 'd_7').when((df_event.d_1 != 1)& (df_event.d_3 != 1) & (df_event.d_5 != 1) & (df_event.d_7 != 1), None))
-
-        session_cols = [i for i in df_event.columns if 'session' in i and 'id' not in i]
+        
         agg_dict = dict(zip(session_cols, ['sum' for _ in range(len(session_cols))]))
         df_agg = df_event.groupBy(COHORTS_DIMENSIONS).pivot('d_cat').agg(agg_dict)
         # rename columns which are e.g. d_1_sum(...) to ..._d_1
@@ -68,9 +100,9 @@ class LTVPredictor:
         
         `folder_id` : `str`, name of the folder in GCS bucket with the parquet files
         """
-        rf = RandomForestRegressor.load('gs://processed-data-bucket/rf')
-        rf_fit = rf.fit(df_model)
-
+        # rf = RandomForestRegressor.load('gs://processed-data-bucket/rf')
+        # rf_fit = rf.fit(df_model)
+        rf_fit = RandomForestRegressionModel.load('gs://processed-data-bucket/rf_fit')
         prediction = rf_fit.transform(df_model).select(avg('prediction').alias('predicted_ltv'))
         prediction.write.format('csv').option('path', f'gs://processed-data-bucket/{folder_id}/prediction').save(header=True)
 
