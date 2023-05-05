@@ -2,12 +2,13 @@ import re, sys, numpy as np
 from pyspark.sql import SparkSession, Window, DataFrame
 from pyspark.sql.functions import *
 from pyspark.ml.feature import VectorAssembler
-from pyspark.ml.regression import RandomForestRegressor, RandomForestRegressionModel
+from pyspark.ml.regression import RandomForestRegressionModel
+from typization_utils.schemas import LTVSchema
 
 
 class LTVPredictor:
     """
-    Abstraction to run preprocessing and prediction pyspark job
+    Wrapper to run preprocessing and prediction pyspark job
     """
     def __init__(self) -> None:
         self.spark = SparkSession.builder.master('yarn').appName('LTV_Predictor').getOrCreate()
@@ -22,13 +23,19 @@ class LTVPredictor:
 
         Returns:
 
-        `pyspark.DataFrame` : input for the 
+        `pyspark.DataFrame` : input for the `predict` method
         """
         path = f"gs://processed-data-bucket/{folder_id}"
         COHORTS_DIMENSIONS = ['first_touch_date', 'traffic_source', 'os', 'country']
         TARGET_VAR = 'cohort_ltv_avg_lifetime'
 
         df_ltv = self.spark.read.parquet(f'{path}/ltv.parquet')
+        # Validate obtained data
+        df_ltv, errors_df = LTVSchema(split_errors=True).validate_df(df_ltv)
+        # `errors_df` must be empty if query returned valid data
+        if errors_df.count() > 0:
+            return None
+        
         df_session = self.spark.read.parquet(f'{path}/session.parquet')
         df_event = self.spark.read.parquet(f'{path}/event.parquet')
         session_cols = [i for i in df_event.columns if 'session' in i and 'id' not in i]
@@ -87,7 +94,7 @@ class LTVPredictor:
         feature_list = [col for col in df.columns if (col not in COHORTS_DIMENSIONS) and (col != TARGET_VAR)]
         assembler = VectorAssembler(inputCols=feature_list, outputCol='features')
 
-        df_model = assembler.transform(df)        
+        df_model = assembler.transform(df)
         return df_model
 
     def predict(self, df_model: DataFrame, folder_id: str) -> None:
